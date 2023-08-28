@@ -1,75 +1,53 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
-import { Post } from './entities/post.entity';
-import { PublicationsService } from 'src/publications/publications.service';
+import { PostRepository } from './post.repository';
+import { PublicationsRepository } from 'src/publications/publications.repository';
 
 @Injectable()
 export class PostService {
-  private posts: Post[];
-  private idCount: number;
-  constructor(private readonly publicationsService: PublicationsService) {
-    this.posts = [];
-    this.idCount = 1;
+  constructor(
+    private readonly postRepository: PostRepository,
+    private readonly publicationsRepository: PublicationsRepository,
+  ) {}
+
+  async create(createPostDto: CreatePostDto) {
+    return await this.postRepository.create(createPostDto);
   }
 
-  create(createPostDto: CreatePostDto) {
-    const { title, text, image } = createPostDto;
-    const id = this.idCount;
-    const post = new Post(id, title, text, image);
+  async findAll() {
+    return await this.postRepository.findAll();
+  }
 
-    this.posts.push(post);
-    this.idCount++;
+  async findOne(id: number) {
+    const post = await this.postRepository.findOne(id);
+
+    if (!post) throw new NotFoundException();
+
     return post;
   }
 
-  findAll() {
-    return this.posts;
+  async update(id: number, updatePostDto: UpdatePostDto) {
+    const post = await this.postRepository.findOne(id);
+    if (!post) throw new NotFoundException();
+
+    return await this.postRepository.update(id, updatePostDto);
   }
 
-  findOne(id: number) {
-    const media = this.posts.find((p) => p._id === id);
+  async remove(id: number) {
+    const post = await this.postRepository.findOne(id);
 
-    if (media) {
-      return media;
-    }
-    throw new NotFoundException();
-  }
+    if (!post) throw new NotFoundException();
 
-  update(id: number, updatePostDto: UpdatePostDto) {
-    const { title, text, image } = updatePostDto;
-    const post = this.posts.find((p) => p.id === id);
+    const publicationsCount =
+      await this.publicationsRepository.publicationCountByPostId(id);
+    if (publicationsCount > 0)
+      throw new ForbiddenException('This post is linked to a publication!');
 
-    if (!post) {
-      throw new NotFoundException();
-    }
-
-    const i = post._id - 1;
-    const postToUpdate = this.posts[i];
-
-    postToUpdate._title = title;
-    postToUpdate._text = text;
-
-    if (image) {
-      postToUpdate._image = image;
-    }
-
-    return `This action updates a #${id} post`;
-  }
-
-  remove(id: number) {
-    const existsPost = this.posts.some((p) => p.id === id);
-
-    if (!existsPost) {
-      throw new NotFoundException();
-    }
-
-    this.posts = this.posts.filter((p) => p.id !== id);
-
-    return `This action removes a #${id} post`;
-  }
-
-  get _posts() {
-    return this.posts;
+    return await this.postRepository.delete(id);
   }
 }

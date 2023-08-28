@@ -2,81 +2,73 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateMediaDto } from './dto/create-media.dto';
 import { UpdateMediaDto } from './dto/update-media.dto';
-import { Media } from './entities/media.entity';
-import { PublicationsService } from 'src/publications/publications.service';
+import { PublicationsRepository } from 'src/publications/publications.repository';
 
 @Injectable()
 export class MediaService {
-  private medias: Media[];
-  private idCount: number;
-  constructor(private readonly publicationsService: PublicationsService) {
-    this.medias = [];
-    this.idCount = 1;
-  }
+  constructor(
+    private readonly mediaRepository: MediaRepository,
+    private readonly publicationRepository: PublicationsRepository,
+  ) {}
 
-  create(createMediaDto: CreateMediaDto) {
+  async create(createMediaDto: CreateMediaDto) {
     const { title, username } = createMediaDto;
-    const existsMedia = this.medias.some((m) => {
-      return m.title === title && m.username === username;
-    });
+    const existsMedia = await this.mediaRepository.getMediaWithUserAndTitle(
+      title,
+      username,
+    );
     if (existsMedia) {
       throw new ConflictException();
     }
-    const id = this.idCount;
-    const media = new Media(id, title, username);
-    this.medias.push(media);
-    this.idCount++;
-    return { id };
+    return await this.mediaRepository.create({ title, username });
   }
 
-  findAll() {
-    return this.medias;
+  async findAll() {
+    return await this.mediaRepository.findAll();
   }
 
-  findOne(id: number) {
-    const media = this.medias.find((m) => m._id === id);
-    if (!media) throw new NotFoundException();
-    return media;
+  async findOne(id: number) {
+    const media = await this.mediaRepository.findOne(id);
+    if (media) {
+      return media;
+    }
+    throw new NotFoundException();
   }
 
-  update(id: number, updateMediaDto: UpdateMediaDto) {
+  async update(id: number, updateMediaDto: UpdateMediaDto) {
     const { title, username } = updateMediaDto;
-    const media = this.medias.find((m) => m._id === id);
-    if (!media) throw new NotFoundException();
-
-    const existsMedia = this.medias.some((m) => {
-      return m.title === title && m.username === username && m.id !== id;
-    });
-
-    if (existsMedia) {
-      throw new ConflictException();
-    }
-
-    const index = media._id - 1;
-    const mediaToUpdate = this.medias[index];
-
-    mediaToUpdate.title = title;
-    mediaToUpdate.username = username;
-
-    return `This action updates a #${id} media`;
-  }
-
-  remove(id: number) {
-    const existsMedia = this.medias.some((m) => m._id === id);
-
-    if (!existsMedia) {
+    const media = await this.mediaRepository.findOne(id);
+    if (!media) {
       throw new NotFoundException();
     }
 
-    this.medias = this.medias.filter((m) => m._id !== id);
+    const existsMedia = await this.mediaRepository.getMediaWithUserAndTitle(
+      title,
+      username,
+    );
 
-    return `This action removes a #${id} media`;
+    if (existsMedia) {
+      throw new ConflictException();
+    }
+
+    return await this.mediaRepository.update(id, { title, username });
   }
 
-  get _medias() {
-    return this.medias;
+  async remove(id: number) {
+    const media = await this.mediaRepository.findOne(id);
+    if (!media) {
+      throw new NotFoundException();
+    }
+
+    const publicationsCount =
+      await this.publicationRepository.publicationCountByMediaId(media.id);
+    if (publicationsCount > 0) {
+      throw new ForbiddenException('This media is linked to a publication');
+    }
+    return await this.mediaRepository.delete(id);
   }
 }
