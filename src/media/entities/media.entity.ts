@@ -8,4 +8,8 @@ export class Media {
     this.title = title;
     this.username = username;
   }
+
+  get _id() {
+    return this.id;
+  }
 }

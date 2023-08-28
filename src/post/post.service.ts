@@ -2,12 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Post } from './entities/post.entity';
+import { PublicationsService } from 'src/publications/publications.service';
 
 @Injectable()
 export class PostService {
   private posts: Post[];
   private idCount: number;
-  constructor() {
+  constructor(private readonly publicationsService: PublicationsService) {
     this.posts = [];
     this.idCount = 1;
   }
@@ -66,5 +67,9 @@ export class PostService {
     this.posts = this.posts.filter((p) => p.id !== id);
 
     return `This action removes a #${id} post`;
+  }
+
+  get _posts() {
+    return this.posts;
   }
 }
