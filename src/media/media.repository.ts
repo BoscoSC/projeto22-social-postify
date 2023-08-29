@@ -1,6 +1,6 @@
 import { CreateMediaDto } from './dto/create-media.dto';
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { UpdateMediaDto } from './dto/update-media.dto';
 
 @Injectable()
@@ -28,7 +28,7 @@ export class MediaRepository {
   }
 
   async findOne(id: number) {
-    return await this.prisma.media.findFirst({ where: { id } });
+    return await this.prisma.media.findUnique({ where: { id } });
   }
 
   async update(id: number, updateMediaDto: UpdateMediaDto) {

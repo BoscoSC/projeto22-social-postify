@@ -1,6 +1,6 @@
 import { IsDateString, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
-export class CreatePublicationsDto {
+export class CreatePublicationDto {
   @IsNotEmpty()
   @IsNumber()
   mediaId: number;

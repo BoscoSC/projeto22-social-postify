@@ -3,84 +3,102 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreatePublicationsDto } from './dto/create-publications.dto';
-import { UpdatePublicationsDto } from './dto/update-publications.dto';
-import dayjs from 'dayjs';
-import { PublicationsRepository } from './publications.repository';
-import { MediaRepository } from 'src/media/media.repository';
-import { PostRepository } from 'src/post/post.repository';
+import { CreatePublicationDto } from './dto/create-publication.dto';
+import { UpdatePublicationDto } from './dto/update-publication.dto';
+import * as dayjs from 'dayjs';
+import { PublicationRepository } from './publication.repository';
+import { MediaRepository } from '../media/media.repository';
+import { PostRepository } from '../post/post.repository';
 
 @Injectable()
-export class PublicationsService {
+export class PublicationService {
   constructor(
-    private readonly publicationRepository: PublicationsRepository,
+    private readonly publicationRepository: PublicationRepository,
     private readonly mediaRepository: MediaRepository,
     private readonly postRepository: PostRepository,
   ) {}
 
-  async create(createPublicationDto: CreatePublicationsDto) {
+  async create(createPublicationDto: CreatePublicationDto) {
     const { mediaId, postId, date } = createPublicationDto;
 
-    const media = await this.mediaRepository.findOne(mediaId);
-    const post = await this.postRepository.findOne(postId);
+    const [media, post] = await Promise.all([
+      this.mediaRepository.findOne(mediaId),
+      this.postRepository.findOne(postId),
+    ]);
 
     if (!post || !media) {
       let message = '';
+
       if (!post) {
         message += 'Post ';
       }
+
       if (!media) {
         if (message.length > 0) {
           message += 'and ';
         }
         message += 'Media ';
       }
+
       message += 'not exists!';
+
       throw new NotFoundException(message);
     }
 
     return await this.publicationRepository.create({ mediaId, postId, date });
   }
 
-  async findAll() {
-    return await this.publicationRepository.findAll();
+  async findAll(published: string | null, after: string | null) {
+    return await this.publicationRepository.findAll(published, after);
   }
 
   async findOne(id: number) {
     const publication = await this.publicationRepository.findOne(id);
 
-    if (!publication) throw new NotFoundException();
+    if (!publication) throw new NotFoundException('Publication not found!');
 
     return publication;
   }
-  async update(id: number, updatePublicationDto: UpdatePublicationsDto) {
+
+  async update(id: number, updatePublicationDto: UpdatePublicationDto) {
     const { mediaId, postId, date } = updatePublicationDto;
 
     const publication = await this.publicationRepository.findOne(id);
 
-    if (!publication) throw new NotFoundException();
+    if (!publication)
+      throw new NotFoundException(
+        'Publication not found, no updates were applied!',
+      );
 
-    const media = await this.mediaRepository.findOne(mediaId);
-    const post = await this.postRepository.findOne(postId);
+    const [media, post] = await Promise.all([
+      this.mediaRepository.findOne(mediaId),
+      this.postRepository.findOne(postId),
+    ]);
 
     if (!post || !media) {
       let message = '';
+
       if (!post) {
         message += 'Post ';
       }
+
       if (!media) {
         if (message.length > 0) {
           message += 'and ';
         }
         message += 'Media ';
       }
+
       message += 'not exists!';
+
       throw new NotFoundException(message);
     }
+
     const currentDate = new Date(Date.now());
     const isPassed = dayjs(currentDate).isAfter(publication.date);
 
-    if (isPassed) throw new ForbiddenException();
+    if (isPassed)
+      throw new ForbiddenException("Publish date has passed, can't update!");
 
     return await this.publicationRepository.update(id, {
       mediaId,
@@ -93,7 +111,9 @@ export class PublicationsService {
     const existsPublication = await this.publicationRepository.findOne(id);
 
     if (!existsPublication) {
-      throw new NotFoundException();
+      throw new NotFoundException(
+        'Publication not found, no deletion applied!',
+      );
     }
 
     return await this.publicationRepository.delete(id);

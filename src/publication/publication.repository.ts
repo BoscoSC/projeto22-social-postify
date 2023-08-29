@@ -1,20 +1,34 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { CreatePublicationsDto } from 'src/publications/dto/create-publications.dto';
-import { UpdatePublicationsDto } from 'src/publications/dto/update-publications.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreatePublicationDto } from '../publication/dto/create-publication.dto';
+import { UpdatePublicationDto } from '../publication/dto/update-publication.dto';
 
 @Injectable()
-export class PublicationsRepository {
+export class PublicationRepository {
   constructor(private prisma: PrismaService) {}
 
-  async create(createPublicationDto: CreatePublicationsDto) {
+  async create(createPublicationDto: CreatePublicationDto) {
     return await this.prisma.publication.create({
       data: createPublicationDto,
     });
   }
 
-  async findAll() {
-    return await this.prisma.publication.findMany();
+  async findAll(published: string | null, after: string | null) {
+    const currentDate = new Date();
+
+    return await this.prisma.publication.findMany({
+      where: {
+        date: {
+          lt: published === 'true' ? currentDate : undefined,
+          gte:
+            published === 'false'
+              ? currentDate
+              : after
+              ? new Date(after)
+              : undefined,
+        },
+      },
+    });
   }
 
   async findOne(id: number) {
@@ -23,7 +37,7 @@ export class PublicationsRepository {
     });
   }
 
-  async update(id: number, updatePublicationDto: UpdatePublicationsDto) {
+  async update(id: number, updatePublicationDto: UpdatePublicationDto) {
     return await this.prisma.publication.update({
       where: { id },
       data: updatePublicationDto,

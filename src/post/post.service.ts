@@ -1,18 +1,18 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PostRepository } from './post.repository';
-import { PublicationsRepository } from 'src/publications/publications.repository';
+import { PublicationRepository } from '../publication/publication.repository';
 
 @Injectable()
 export class PostService {
   constructor(
     private readonly postRepository: PostRepository,
-    private readonly publicationsRepository: PublicationsRepository,
+    private readonly publicationsRepository: PublicationRepository,
   ) {}
 
   async create(createPostDto: CreatePostDto) {
@@ -26,14 +26,15 @@ export class PostService {
   async findOne(id: number) {
     const post = await this.postRepository.findOne(id);
 
-    if (!post) throw new NotFoundException();
+    if (!post) throw new NotFoundException('Post not found!');
 
     return post;
   }
 
   async update(id: number, updatePostDto: UpdatePostDto) {
     const post = await this.postRepository.findOne(id);
-    if (!post) throw new NotFoundException();
+    if (!post)
+      throw new NotFoundException('Post not found, no updates were applied!');
 
     return await this.postRepository.update(id, updatePostDto);
   }
@@ -41,7 +42,7 @@ export class PostService {
   async remove(id: number) {
     const post = await this.postRepository.findOne(id);
 
-    if (!post) throw new NotFoundException();
+    if (!post) throw new NotFoundException('Post not found, no delete applied');
 
     const publicationsCount =
       await this.publicationsRepository.publicationCountByPostId(id);
